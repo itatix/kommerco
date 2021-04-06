@@ -65,7 +65,8 @@ class SaleOrder(models.Model):
 
         #seleccionar en la confirmacion del stock.picking la informacion del carrier
         #
-        
+        _logger.info("meli_oerp_stock confirm_ml ended.")
+
 
 class MercadolibreOrder(models.Model):
 

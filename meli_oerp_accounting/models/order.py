@@ -82,3 +82,4 @@ class SaleOrder(models.Model):
             _logger.info("Confirm Payment Exception")
             _logger.error(e, exc_info=True)
             pass
+        _logger.info("meli_oerp_accounting confirm_ml ended.")

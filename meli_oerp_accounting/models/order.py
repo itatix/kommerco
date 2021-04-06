@@ -50,29 +50,30 @@ class SaleOrder(models.Model):
         return _invoices
 
 
-    def confirm_ml(self):
-
-        company = self.env.user.company_id
+    def confirm_ml( self, meli=None, config=None ):
+        _logger.info("meli_oerp_accounting confirm_ml")
+        company = (config and 'company_id' in config._fields and config.company_id) or self.env.user.company_id
+        config = config or company
         try:
-            super(SaleOrder, self).confirm_ml()
+            super(SaleOrder, self).confirm_ml(meli=meli,config=config)
             if (self.meli_orders):
                 #process payments
                 for meli_order in self.meli_orders:
                     for payment in meli_order.payments:
                         try:
-                            if company.mercadolibre_process_payments_customer and not payment.account_payment_id:
+                            if config.mercadolibre_process_payments_customer and not payment.account_payment_id:
                                 payment.create_payment()
                         except Exception as e:
                             _logger.info("Error creating customer payment")
                             _logger.info(e, exc_info=True)
                         try:
-                            if company.mercadolibre_process_payments_supplier_fea and not payment.account_supplier_payment_id:
+                            if config.mercadolibre_process_payments_supplier_fea and not payment.account_supplier_payment_id:
                                 payment.create_supplier_payment()
                         except Exception as e:
                             _logger.info("Error creating supplier fee payment")
                             _logger.info(e, exc_info=True)
                         try:
-                            if company.mercadolibre_process_payments_supplier_shipment and not payment.account_supplier_payment_shipment_id and (payment.order_id and payment.order_id.shipping_list_cost>0.0):
+                            if config.mercadolibre_process_payments_supplier_shipment and not payment.account_supplier_payment_shipment_id and (payment.order_id and payment.order_id.shipping_list_cost>0.0):
                                 payment.create_supplier_payment_shipment()
                         except Exception as e:
                             _logger.info("Error creating supplier shipment payment")

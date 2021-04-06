@@ -31,38 +31,41 @@ class SaleOrder(models.Model):
 
     _inherit = "sale.order"
 
-    def _meli_order_update( self ):
+    def _meli_order_update( self, config=None ):
 
         for order in self:
             if ((order.meli_shipment and order.meli_shipment.logistic_type == "fulfillment")
                 or order.meli_shipment_logistic_type=="fulfillment"):
                 #seleccionar almacen para la orden
-                order.warehouse_id = order._meli_get_warehouse_id()    
+                order.warehouse_id = order._meli_get_warehouse_id(config=config)
 
-    def _meli_get_warehouse_id( self ):
+    def _meli_get_warehouse_id( self, config=None ):
 
-        company = self.company_id
+        company = (config and 'company_id' in config._fields and config.company_id) or self.env.user.company_id
+        config = config or company
         wh_id = None
 
-        if (company.mercadolibre_stock_warehouse):
-            wh_id = company.mercadolibre_stock_warehouse
+        if (config.mercadolibre_stock_warehouse):
+            wh_id = config.mercadolibre_stock_warehouse
 
         if (self.meli_shipment_logistic_type == "fulfillment"):
-            if (company.mercadolibre_stock_warehouse_full):
-                wh_id = company.mercadolibre_stock_warehouse_full
+            if (config.mercadolibre_stock_warehouse_full):
+                wh_id = config.mercadolibre_stock_warehouse_full
         return wh_id
 
     #try to update order before confirmation (quotation)
-    def confirm_ml(self):
+    def confirm_ml( self, meli=None, config=None ):
+        _logger.info("meli_oerp_stock confirm_ml")
+        company = (config and 'company_id' in config._fields and config.company_id) or self.env.user.company_id
+        config = config or company
 
-        company = self.env.user.company_id
+        self._meli_order_update(config=config)
 
-        self._meli_order_update()
-
-        super(SaleOrder, self).confirm_ml()
+        super(SaleOrder, self).confirm_ml(meli=meli,config=config)
 
         #seleccionar en la confirmacion del stock.picking la informacion del carrier
         #
+        
 
 class MercadolibreOrder(models.Model):
 
@@ -76,4 +79,4 @@ class MercadolibreOrder(models.Model):
         company = self.env.user.company_id
 
         if self.sale_order:
-            self.sale_order._meli_order_update()
+            self.sale_order._meli_order_update(config=config)

@@ -27,10 +27,13 @@ class product_template_update(models.TransientModel):
         account = self.connection_account
         company = (account and account.company_id) or company
 
-        meli = self.env['meli.util'].get_new_instance( company, account )
-        if meli.need_login():
-            return meli.redirect_login()
-
+        if account:
+            meli = self.env['meli.util'].get_new_instance( company, account )
+            if meli.need_login():
+                return meli.redirect_login()
+        else:
+            meli = None
+            
         meli_id = False
         if self.meli_id:
             meli_id = self.meli_id
@@ -42,7 +45,7 @@ class product_template_update(models.TransientModel):
                     product.meli_pub = True
                     for variant in product.product_variant_ids:
                         variant.meli_pub = True
-                if (product.meli_pub):
+                if (product.meli_pub):                    
                     res = product.product_template_update( meli_id=meli_id, meli=meli, account=account )
 
             if 'name' in res:
@@ -129,7 +132,7 @@ class ProductTemplateBindUpdate(models.TransientModel):
         _logger.info("binding_product_template_update (MercadoLibre)")
 
         company = self.env.user.company_id
-        bind_ids = context['active_ids']
+        bind_ids = ('active_ids' in context and context['active_ids']) or []
         bindobj = self.env['mercadolibre.product_template']
 
         res = {}
@@ -160,7 +163,7 @@ class ProductVariantBindUpdate(models.TransientModel):
         
         warningobj = self.env['warning']
         company = self.env.user.company_id
-        bind_ids = context['active_ids']
+        bind_ids = ('active_ids' in context and context['active_ids']) or []
         bindobj = self.env['mercadolibre.product']
 
         rest = []
@@ -298,7 +301,7 @@ class ProductTemplatePostExtended(models.TransientModel):
                                                     'force_meli_active': self.force_meli_active
                                                 }
                                                 ).product_template_post( context=None, account=mercadolibre, meli=meli )
-                    if 'name' in res:
+                    if res and 'name' in res:
                         return res
         
         return res        

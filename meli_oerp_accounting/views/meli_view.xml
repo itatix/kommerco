@@ -27,12 +27,18 @@
 					<page string="Invoices">
 						<group name="Posted">
 							<group>
+								<button name='orders_create_invoice' type="object"
+									string="Crear Facturas"
+									attrs="{'invisible':[('invoice_created','=',True)]}"
+									class="oe_stat_button"
+									icon="fa-globe"/>
 								<button name='orders_post_invoice' type="object"
 									string="Publicar Facturas"
 									attrs="{'invisible':[('invoice_posted','=',True)]}"
 									class="oe_stat_button"
 									icon="fa-globe"/>
 								<field name="invoice_posted" invisible="0"/>
+								<field name="invoice_created" invisible="0"/>
 								<!--div class="oe_button_box" name="button_box_mel_post" style="width: auto;">
 
 							</div-->

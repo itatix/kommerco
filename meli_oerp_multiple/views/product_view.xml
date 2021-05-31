@@ -23,6 +23,7 @@
                   <field name="conn_id"/>
                   <field name="price" />
                   <field name="stock" />
+                  <field name="meli_shipping_logistic_type"/>
                 </group>
               </group>
               <!--label for="sale_ok" position="after">
@@ -37,6 +38,12 @@
                       string="Publicar"
                       title="Publicar/Actualizar en ML"
                       confirm="¿Está seguro que quiere publicar/actualizar los datos en ML?"
+                      class="oe_stat_button"
+                      icon="fa-globe"/>
+                    <button name='product_template_post_stock' type="object"
+                      string="Publicar Stock"
+                      title="Publicar Stock en ML"
+                      confirm="¿Está seguro que quiere publicar/actualizar stock en ML?"
                       class="oe_stat_button"
                       icon="fa-globe"/>
                     <button name='product_template_update' type="object"
@@ -86,6 +93,8 @@
                   <field name="meli_warranty" />
                   <field name="meli_condition" />
                   <field name="meli_listing_type" />
+                  <!--field name="meli_shipping_mode"/>
+                  <field name="meli_shipping_method"/-->
                 </group>
                 <separator string="Variantes" colspan="1"/>
                 <group name="variantes">
@@ -141,6 +150,7 @@
                 <field name="conn_variation_id"/>
                 <field name="price" />
                 <field name="stock" />
+                <field name="meli_shipping_logistic_type"/>
               </group>
               <br/>
               <!--label for="sale_ok" position="after">
@@ -252,6 +262,8 @@
                   <field name="meli_price_fixed" />
                   <field name="meli_price" />
                   <field name="meli_currency" />
+                  <!--field name="meli_shipping_mode"/>
+                  <field name="meli_shipping_method"/-->
                 </group>
                 <group>
                   <field name="meli_condition" />
@@ -313,6 +325,7 @@
                             <field name="conn_variation_id"  string="Variant Id"/>
                             <field name="price"/>
                             <field name="stock"/>
+                            <field name="meli_shipping_logistic_type"/>
                           </tree>
                       </field>
 										</page>
@@ -362,11 +375,19 @@
                             <field name="conn_variation_id"  string="Variant Id"/>
                             <field name="price"/>
                             <field name="stock"/>
+                            <field name="meli_shipping_logistic_type"/>
                           </tree>
                       </field>
                     </page>
                 </notebook>
               </data>
+              <xpath expr="//div[@name='button_box_mel']" position="inside">
+                <button name='product_template_post_stock' type="object"
+                  string="Publicar Stock"
+                  title="Publicar Stock en ML"
+                  class="oe_stat_button"
+                  icon="fa-globe"/>
+              </xpath>
               <xpath expr="//group[@name='ML actions']" position="after">
                 <separator string="MercadoLibre Bindings" name="mercadolibre_bindings"/>
                 <!--group string="ML Bindings" name="ML Bindings"-->

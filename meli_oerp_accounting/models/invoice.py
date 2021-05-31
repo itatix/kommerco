@@ -71,11 +71,12 @@ class Invoice(models.Model):
     def firmar_factura_electronica(self):
         _logger.info("meli_oerp: firmar_factura_electronica")
         try:
-            res = super( Invoice, self ).firmar_factura_electronica()
-            sorder = self.env['sale.order'].search([('name','=',self.origin)], limit=1)
-            if sorder:
-                if sorder and sorder.meli_orders:
-                    sorder.meli_orders[0].orders_post_invoice()
+            for inv in self:
+                res = super( Invoice, inv ).firmar_factura_electronica()
+                sorder = self.env['sale.order'].search([('name','=',inv.origin)], limit=1)
+                if sorder:
+                    if sorder and sorder.meli_orders:
+                        sorder.meli_orders[0].orders_post_invoice()
 
         except Exception as e:
             raise e;
@@ -96,13 +97,16 @@ class Invoice(models.Model):
         #zip_file.writestr(, zip_content.getvalue())
 
         #XMLbytes = base64.b64decode(self.attachment_file)
-        if "attachment_file" in self._fields:
-            XMLbytes = self.attachment_file
-            XMLname = self.filename.replace('fv', 'ad').replace('nc', 'ad').replace('nd', 'ad') + '.xml'
-            #_logger.info(XMLbytes)
-            _logger.info(XMLname)
+
 
         if self.env.ref('l10n_co_cei.account_invoices_fe'):
+
+            if "attachment_file" in self._fields:
+                XMLbytes = self.attachment_file
+                XMLname = self.filename.replace('fv', 'ad').replace('nc', 'ad').replace('nd', 'ad') + '.xml'
+                #_logger.info(XMLbytes)
+                _logger.info(XMLname)
+
             template = self.env.ref('l10n_co_cei.account_invoices_fe')
             render_template = template.render_qweb_pdf([self.id])
             #PDFbytes = base64.b64decode(base64.b64encode(render_template[0]))
@@ -110,6 +114,9 @@ class Invoice(models.Model):
             PDFName = self.filename.replace('fv', 'ad').replace('nc', 'ad').replace('nd', 'ad') + '.pdf'
             #_logger.info(PDFbytes)
             _logger.info(PDFName)
+
+
+
 
         return XMLname, XMLbytes, PDFName, PDFbytes
 
@@ -120,6 +127,14 @@ class OrdersInvoice(models.Model):
     invoice_pdf = fields.Binary(string='Invoice PDF')
     invoice_xml = fields.Binary(string='Invoice XML')
 
+    def orders_create_invoice(self, context=None, meli=None):
+        _logger.info("orders_create_invoice:"+str(context))
+        self.invoice_created = True
+        so = self and self.sale_order
+        if (so):
+            so.meli_create_invoice( meli=meli, config=so.company_id )
+
+
     def orders_post_invoice(self, context=None, meli=None):
         context = context or self.env.context
         _logger.info("orders_post_invoice: context: "+str(context))
@@ -127,10 +142,13 @@ class OrdersInvoice(models.Model):
         self.invoice_posted = True
 
         _logger.info("Create binary PDF and XML for attach files")
+        company = self.env.user.company_id
+        if not meli:
+            meli = self.env['meli.util'].get_new_instance(company)
 
         so = self.sale_order
         if so:
-            invoices = self.env['account.invoice'].search([('origin','=',so.name)])
+            invoices = self.env[acc_inv_model].search([('origin','=',so.name)])
             #'estado_validacion': record['fe_approved'],
             respost = ""
             for inv in invoices:
@@ -139,6 +157,8 @@ class OrdersInvoice(models.Model):
                 #    related="envio_fe_id.respuesta_validacion",
                 #    copy=False
                 #)
+                files = []
+
                 if ('estado_dian' in inv._fields and ( inv.estado_dian and 'Procesado Correctamente' in inv.estado_dian) and inv.zipped_file):
                     _logger.info("Factura validada, generando.... para envio.")
 
@@ -150,8 +170,6 @@ class OrdersInvoice(models.Model):
                     if XMLbytes:
                         self.invoice_xml = XMLbytes
 
-                    files = []
-
                     if PDFName and PDFbytes and XMLname and XMLbytes:
                         files = [ ('fiscal_document', ( PDFName, base64.b64decode(PDFbytes), 'application/pdf')),
                                   ('fiscal_document', ( XMLname, base64.b64decode(XMLbytes), 'application/xml')) ]
@@ -162,23 +180,22 @@ class OrdersInvoice(models.Model):
 
                     #files = [ ('fiscal_document', ( PDFName, base64.b64decode(PDFbytes), 'application/pdf')) ]
                     #files = [ ('fiscal_document', ( XMLname, base64.b64decode(XMLbytes), 'application/xml') ]
-                    company = self.env.user.company_id
-                    if not meli:
-                        meli = self.env['meli.util'].get_new_instance(company)
 
-                    if meli and files:
-                        res = meli.uploadfiles("/packs/"+str(self.pack_id or self.order_id)+"/fiscal_documents", files=files, params={ "access_token": meli.access_token } )
-                        _logger.info(res)
-                        if res:
-                            _logger.info(res.json())
-                            respost += str(res.json())
-                            #{'statusCode': 409, 'code': 'conflict', 'message': 'File Not allowed, the max amount of files already exist for the pack: 4433064137 and seller: 115266467', 'requestId': '557c88de-160f-4de9-a36d-2c01cb277ec6'}
-                            if 'error' in res.json():
-                                _logger.error(res.json())
-                                self.invoice_posted = False
-                                self.invoice_fiscal_documents = respost
-                                return res
-                        self.invoice_posted = True
+
+                if meli and files:
+                    res = meli.uploadfiles("/packs/"+str(self.pack_id or self.order_id)+"/fiscal_documents", files=files, params={ "access_token": meli.access_token } )
+                    _logger.info(res)
+                    if res:
+                        _logger.info(res.json())
+                        respost += str(res.json())
+                        #{'statusCode': 409, 'code': 'conflict', 'message': 'File Not allowed, the max amount of files already exist for the pack: 4433064137 and seller: 115266467', 'requestId': '557c88de-160f-4de9-a36d-2c01cb277ec6'}
+                        if 'error' in res.json():
+                            _logger.error(res.json())
+                            self.invoice_posted = False
+                            self.invoice_fiscal_documents = respost
+                            return res
+                    self.invoice_posted = True
+
             self.invoice_fiscal_documents = respost
 
 
@@ -190,4 +207,5 @@ class OrdersInvoice(models.Model):
         self.invoice_fiscal_documents = ""
 
     invoice_fiscal_documents = fields.Char(string='Invoice Fiscal Documents')
+    invoice_created = fields.Boolean(string='Invoice Created')
     invoice_posted = fields.Boolean(string='Invoice Posted')

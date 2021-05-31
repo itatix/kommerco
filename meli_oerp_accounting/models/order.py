@@ -26,6 +26,8 @@ _logger = logging.getLogger(__name__)
 
 import pdb
 import requests
+from odoo.addons.meli_oerp.models.versions import *
+
 
 class SaleOrder(models.Model):
 
@@ -49,6 +51,66 @@ class SaleOrder(models.Model):
                             _logger.info(Invoice.fecha_entrega)
         return _invoices
 
+    def meli_create_invoice( self, meli=None, config=None):
+        _logger.info("meli_oerp_accounting meli_create_invoice started.")
+
+        if "_invoice" in config.mercadolibre_order_confirmation:
+            so = self
+            #solo ordenes confirmadas o terminadas
+	    # TODO check meli_status_brief: if (self.meli_status_brief and "delivered" in self.meli_status_brief
+            if so.state in ['sale','done']:
+                dones = False
+                cancels = False
+                drafts = False
+                if cond:
+                    if so.picking_ids:
+                        for spick in so.picking_ids:
+                            _logger.info(str(spick)+" state:"+str(spick.state))
+                            if spick.state in ['done']:
+                                dones = True
+                            elif spick.state in ['cancel']:
+                                cancels = True
+                            else:
+                                drafts = True
+                    else:
+                        dones = False
+
+                    if drafts:
+                        #drafts then nothing is full done
+                        dones = False
+
+                    if dones:
+                        _logger.info("Creating invoice...")
+                        invoices = self.env[acc_inv_model].search([('origin','=',so.name)])
+
+                        if not invoices:
+                            _logger.info("Creating invoices")
+                            result = so.action_invoice_create()
+                            _logger.info("result:"+str(result))
+                            invoices = self.env[acc_inv_model].search([('origin','=',so.name)])
+                            _logger.info("Created invoices: "+str(invoices))
+
+                        if invoices:
+                            for inv in invoices:
+                                #try:
+                                if inv.state in ['draft']:
+                                    _logger.info("Validate invoice: "+str(inv.name))
+                                    inv.action_invoice_open()
+                                    _logger.info("Created invoices and validated!")
+
+                                #if inv.state in ['open']:
+                                #    _logger.info("Send to Producteca: "+str(inv.name))
+                                #    inv.orders_post_invoice()
+
+                                #except:
+                                    #inv.message_post()
+                                #    error = {"error": "Invoice Error"}
+                                #    result.append(error)
+                                #    raise;
+                    else:
+                        _logger.info("Creating invoices not processed, shipment not complete: dones:"+str(False)+" drafts: "+str(drafts)+" cancels:"+str(cancels))
+
+        _logger.info("meli_oerp_accounting meli_create_invoice ended.")
 
     def confirm_ml( self, meli=None, config=None ):
         _logger.info("meli_oerp_accounting confirm_ml")
@@ -82,4 +144,8 @@ class SaleOrder(models.Model):
             _logger.info("Confirm Payment Exception")
             _logger.error(e, exc_info=True)
             pass
+        _logger.info("meli_oerp_accounting confirm_ml registering payments ended.")
+
+        self.meli_create_invoice( meli=meli, config=config )
+
         _logger.info("meli_oerp_accounting confirm_ml ended.")
